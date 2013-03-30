@@ -41,7 +41,7 @@ class Metasploit3 < Msf::Post
                                 OptString.new( 'FTPPROXY',      [ false, 'Provide HOST:PORT setting of proxy server for FTP protocols']),
                                 OptString.new( 'SOCKSPROXY',    [ false, 'Provide HOST:PORT setting of proxy server for SOCKS protocols']),
                                 OptString.new( 'AUTOCONFIGURL', [ false, 'Provide URL to configuration file for AutoConfig functionality']),
-                                OptString.new( 'EXCEPTIONS',    [ false, 'Exclude proxying for hosts beginning with (semicolon-delimited)']),
+                                OptString.new( 'EXCEPTIONS',    [ false, 'Exclude proxying for hosts beginning with (semicolon-delimited).  Use "<local>" to "Bypass Proxy Server for Local Addresses"']),
                                 OptBool.new(   'WPAD',          [ true,  'Enable/disable WPAD.  ("Automatically detect settings")']),
                                 OptBool.new(   'AUTOCONFIG',    [ true,  'Enable/disable AutoConfig. ("Use automatic configuration script")']),
                                 OptBool.new(   'ENABLE',        [ true,  'Enable/disable proxy server. ("Use a proxy server for your LAN")'])
