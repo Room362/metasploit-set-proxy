@@ -91,7 +91,7 @@ class Metasploit3 < Msf::Post
 		print_status "----- PREVIOUS SETTINGS -----"
 		retVal = queryProxy(values.data)
 		if not retVal
-			print_error "FATAL ERROR: Unrecognized proxy configuration.  (Did you break it?)  Aborting."
+			print_error "FATAL ERROR: Unrecognized proxy configuration.  Restore from known-good config.  Aborting."
 	                service_stop('RemoteRegistry',datastore['RHOST']) if startedreg
 			return -1
 		end
@@ -187,26 +187,18 @@ class Metasploit3 < Msf::Post
 	end
 
 	def queryProxySetting(byte)
-                case (byte)
-                        when 1
-                                return "No proxy settings (#{byte})"
-                        when 3
-                                return "Proxy server (#{byte})"
-                        when 5
-                                return "Set proxy via AutoConfigure script (#{byte})"
-                        when 7
-                                return "Proxy server and AutoConfigure script (#{byte})"
-                        when 9
-                                return "WPAD (#{byte})"
-                        when 11
-                                return "WPAD and Proxy server (#{byte})"
-                        when 13
-                                return "WPAD and AutoConfigure script (#{byte})"
-                        when 15
-                                return "WPAD, Proxy server and AutoConfigure script (#{byte})"
-                        else
-                                return "Unknown proxy setting found (#{byte})"
-                end
+		text = []
+		text[1] = "No proxy settings (#{byte})"
+		text[3] = "Proxy server (#{byte})"
+                text[5] = "Set proxy via AutoConfigure script (#{byte})"
+                text[7] = "Proxy server and AutoConfigure script (#{byte})"
+		text[9] = "WPAD (#{byte})"
+		text[11] = "WPAD and Proxy server (#{byte})"
+		text[13] = "WPAD and AutoConfigure script (#{byte})"
+		text[15] = "WPAD, Proxy server and AutoConfigure script (#{byte})"
+
+		return text[byte] if text[byte]
+		return false
 	end
 
 	def clearProxyIPs(new)
