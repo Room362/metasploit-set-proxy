@@ -1,12 +1,14 @@
 metasploit-set-proxy
 ==========================
-Version 0.9 (BETA) - Feature complete, in testing
+Version 1.0 - Feedback welcome
 
 set-proxy Meterpreter module (formerly configure-proxy)
 
 To install, place in your ~/msf4/modules/post/windows/manage folder, then:
 
 ```
+meterpreter > background
+[*] Backgrounding session 8...
 msf> use post/windows/manage/set_proxy
 msf  post(set_proxy) > show options
 
@@ -17,7 +19,7 @@ Module options (post/windows/manage/set_proxy):
    AUTOCONFIG                      yes       Enable/disable AutoConfig. ("Use automatic configuration script")
    AUTOCONFIGURL                   no        Provide URL to configuration file for AutoConfig functionality
    ENABLE                          yes       Enable/disable proxy server. ("Use a proxy server for your LAN")
-   EXCEPTIONS                      no        Exclude proxying for hosts beginning with (semicolon-delimited)
+   EXCEPTIONS                      no        Exclude proxying for hosts beginning with (semicolon-delimited).  Use "<local>" to "Bypass Proxy Server for Local Addresses"
    FTPPROXY                        no        Provide HOST:PORT setting of proxy server for FTP protocols
    HTTPPROXY                       no        Provide HOST:PORT setting of proxy server for HTTP protocols
    HTTPSPROXY                      no        Provide HOST:PORT setting of proxy server for HTTPS protocols
@@ -47,7 +49,7 @@ Module options (post/windows/manage/set_proxy):
    AUTOCONFIG     false               yes       Enable/disable AutoConfig. ("Use automatic configuration script")
    AUTOCONFIGURL                      no        Provide URL to configuration file for AutoConfig functionality
    ENABLE         true                yes       Enable/disable proxy server. ("Use a proxy server for your LAN")
-   EXCEPTIONS                         no        Exclude proxying for hosts beginning with (semicolon-delimited)
+   EXCEPTIONS                         no        Exclude proxying for hosts beginning with (semicolon-delimited).  Use "<local>" to "Bypass Proxy Server for Local Addresses"
    FTPPROXY                           no        Provide HOST:PORT setting of proxy server for FTP protocols
    HTTPPROXY                          no        Provide HOST:PORT setting of proxy server for HTTP protocols
    HTTPSPROXY                         no        Provide HOST:PORT setting of proxy server for HTTPS protocols
