@@ -87,7 +87,7 @@ class Metasploit3 < Msf::Post
 	                service_stop('RemoteRegistry',datastore['RHOST']) if startedreg
 			return -1
 		end
-			
+
 		print_status "----- PREVIOUS SETTINGS -----"
 		retVal = queryProxy(values.data)
 		if not retVal
@@ -179,7 +179,7 @@ class Metasploit3 < Msf::Post
                 additionalinfo = data[cursor+4, (data[cursor,1].unpack('C*'))[0]]
                 print_status "Exceptions:    #{additionalinfo}" if additionalinfo != ""
 
-                cursor = cursor + 4 + (data[cursor].unpack('C*'))[0]				
+                cursor = cursor + 4 + (data[cursor].unpack('C*'))[0]
                 autoconfigurl = data[cursor+4, (data[cursor,1].unpack('C*'))[0]]
        	        print_status "AutoConfigURL: #{autoconfigurl}" if autoconfigurl != ""
 
