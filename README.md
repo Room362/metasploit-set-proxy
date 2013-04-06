@@ -1,6 +1,6 @@
 metasploit-set-proxy
 ==========================
-Version 1.0 - Feedback welcome
+Version 1.0 - Feedback welcome (surefire@unallocatedspace.org)
 
 set-proxy Meterpreter module (formerly configure-proxy)
 
